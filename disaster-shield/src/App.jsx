@@ -6,6 +6,7 @@ import WeatherPanel from "./components/WeatherPanel";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Navigation from "./components/Navigation";
+import { API_BASE_URL } from "./api-config";
 
 const RC = {high:"#FF3B30",medium:"#FF9500",low:"#34C759"};
 
@@ -28,7 +29,7 @@ function RiskMapPage() {
     const fetchZones = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`http://localhost:8000/api/v1/user/zones-risk?disaster_type=${dis}`);
+        const res = await fetch(`${API_BASE_URL}/api/v1/user/zones-risk?disaster_type=${dis}`);
         const data = await res.json();
         setPoints(data.points || []);
       } catch (err) {
@@ -229,9 +230,9 @@ export default function App() {
     try {
       const q = `&floor=${s.floor}&has_power_backup=${s.has_power_backup}&has_ac=${s.has_ac}&supplies_days=${s.supplies_days}`;
       const [histRes, riskRes, evacRes] = await Promise.all([
-        fetch(`http://localhost:8000/api/v1/user/weather-history?lat=${u.lat}&lng=${u.lng}`),
-        fetch(`http://localhost:8000/api/v1/user/risk-analysis?lat=${u.lat}&lng=${u.lng}`),
-        fetch(`http://localhost:8000/api/v1/user/evacuation?lat=${u.lat}&lng=${u.lng}${q}`)
+        fetch(`${API_BASE_URL}/api/v1/user/weather-history?lat=${u.lat}&lng=${u.lng}`),
+        fetch(`${API_BASE_URL}/api/v1/user/risk-analysis?lat=${u.lat}&lng=${u.lng}`),
+        fetch(`${API_BASE_URL}/api/v1/user/evacuation?lat=${u.lat}&lng=${u.lng}${q}`)
       ]);
 
       if (histRes.ok && riskRes.ok && evacRes.ok) {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../api-config';
 
 const Auth = ({ setAuthUser }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -44,7 +45,7 @@ const Auth = ({ setAuthUser }) => {
       : { username, password, city, lat: coords?.lat || 20.5937, lng: coords?.lng || 78.9629 };
 
     try {
-      const response = await fetch(`http://localhost:8000${endpoint}`, {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

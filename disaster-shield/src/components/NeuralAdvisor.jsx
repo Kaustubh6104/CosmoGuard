@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, Sparkles } from 'lucide-react';
-import { GEMINI_API_KEY, GEMINI_MODEL } from '../api-config';
+import { API_BASE_URL, GEMINI_API_KEY, GEMINI_MODEL } from '../api-config';
 
 const NeuralAdvisor = ({ riskData, user, disasterType }) => {
   const [query, setQuery] = useState('');
@@ -36,7 +36,7 @@ const NeuralAdvisor = ({ riskData, user, disasterType }) => {
     
     const score = Math.min(100, (flr > 1 ? 40 : 10) + (sup * 10) + (pwr ? 20 : 0) + (ac ? 10 : 0));
 
-    const response = await fetch(`http://127.0.0.1:8000/api/v1/user/ai-query`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/user/ai-query`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

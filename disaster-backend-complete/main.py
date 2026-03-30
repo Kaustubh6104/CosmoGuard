@@ -60,5 +60,10 @@ def health_check():
         "data_sources": ["IMD", "NASA POWER", "CWC", "Sentinel-2", "NOAA"]
     }
 
+import os
+
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    # Use the port assigned by the hosting provider (e.g., Render/Heroku)
+    # Default to 8000 for local development
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False if os.environ.get("PORT") else True)
