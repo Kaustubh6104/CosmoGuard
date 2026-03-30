@@ -99,7 +99,15 @@ async def get_local_news(city: str):
     return {"news": mock_news, "city": city}
 
 @router.get("/evacuation")
-async def get_evacuation_routes(lat: float, lng: float, risk_type: str = "flood"):
+async def get_evacuation_routes(
+    lat: float, 
+    lng: float, 
+    risk_type: str = "flood", 
+    floor: int = 0, 
+    has_power_backup: bool = False, 
+    has_ac: bool = False,
+    supplies_days: int = 0
+):
     if risk_type == "drought":
         return {
             "status": "Safe to Stay (Precautionary)",
@@ -109,11 +117,29 @@ async def get_evacuation_routes(lat: float, lng: float, risk_type: str = "flood"
                 "Stay Hydrated: Drink plenty of water even if not thirsty.",
                 "Avoid Direct Sun: Stay indoors between 12 PM and 4 PM.",
                 "Check on Elderly: Ensure neighbors and relatives are safe.",
-                "Water Conservation: Use water sparingly for essential needs only.",
-                "Cool Environment: Keep curtains closed to block heat."
+                "Cooling active: Your AC/Home cooling is sufficient." if has_ac else "Maintain ventilation.",
+                "Water Conservation: Priority stock active." if supplies_days > 3 else "Refill stocks now."
             ]
         }
     
+    # Logic for Shelter in Place vs Evacuation
+    # If flood and user is on high floor with supplies, they are safer at home
+    is_well_prepared = (floor > 1 and has_power_backup and supplies_days >= 3)
+    
+    if risk_type == "flood" and is_well_prepared:
+        return {
+            "status": "Shelter in Place Recommended",
+            "safe_zone": { "lat": lat, "lng": lng, "name": "Your Home (Upper Floors)" },
+            "distance_km": 0.0,
+            "instructions": [
+                "Excellent Readiness: You have sufficient supplies and height advantage.",
+                "Turn off main power breaker if water enters ground floor.",
+                "Ensure emergency communications (Mobile/Radio) are fully charged.",
+                "Monitor official broadcasts for localized spillway alerts.",
+                "Avoid using elevators during the storm period."
+            ]
+        }
+
     safe_lat = lat + (random.uniform(0.05, 0.1) * random.choice([-1, 1]))
     safe_lng = lng + (random.uniform(0.05, 0.1) * random.choice([-1, 1]))
     return {
@@ -169,3 +195,56 @@ async def get_zones_risk(disaster_type: str = "flood"):
             "actual_percentage": base_risk
         })
     return {"points": results}
+
+# --- AI NEURAL ENGINE ROUTE ---
+
+GEMINI_API_KEY = "AIzaSyAWk6ZPZame61vSX5yIM1onSKIRSWxFyow"
+
+@router.post("/ai-query")
+async def get_ai_advice(payload: dict):
+    """
+    Securely routes AI queries through the backend.
+    """
+    user_prompt = payload.get("prompt", "")
+    context = payload.get("context", {})
+    if not GEMINI_API_KEY:
+        raise HTTPException(500, "Gemini API key not configured on server.")
+
+    system_context = f"Context: {context.get('city')}, {context.get('disasterType')}, Risk: {context.get('flood_risk')}%. Stats: Floor {context.get('floor')}, Readiness {context.get('readiness_score')}%."
+
+    # Try models in order
+    models_to_try = ["gemini-1.5-flash", "gemini-pro"]
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for model in models_to_try:
+            try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+                response = await client.post(url, json={
+                    "contents": [{ "role": "user", "parts": [{ "text": system_context + "\n\nUser Question: " + user_prompt }] }]
+                })
+                if response.status_code == 200:
+                    data = response.json()
+                    return {"advice": data["candidates"][0]["content"]["parts"][0]["text"]}
+                print(f"Model {model} failed: {response.text}")
+            except Exception as e:
+                print(f"Error trying model {model}: {str(e)}")
+                continue
+    
+    # --- FINAL FAIL-SAFE: Simulated AI Response ---
+    # This ensures the bot ALWAYS works for your demo even if the API key is restricted.
+    
+    score = context.get('readiness_score', 0)
+    city = context.get('city', 'Unknown')
+    dtype = context.get('disasterType', 'this hazard').capitalize()
+    
+    if dtype.lower() in ["heatwave", "drought"]:
+        advice = f"Neural Engine Offline [Simulation Mode]. {dtype} detected for {city}. Your readiness is {score}%. "
+        advice += f"Ensure hydration is prioritized and minimize exposure between 12 PM - 4 PM. "
+        advice += "I recommend maintaining active cooling cycles." if context.get('ac') else "Prepare passive cooling areas."
+    else:
+        advice = f"Neural Engine Offline [Simulation Mode]. Scanning {city} for {dtype} impact. Readiness: {score}%. "
+        if score < 50:
+            advice += "CRITICAL: Evacuation routes are primary. Relocate to high ground immediately."
+        else:
+            advice += "STABLE: Monitor local drainage levels and maintain upper floor security."
+
+    return {"advice": advice}

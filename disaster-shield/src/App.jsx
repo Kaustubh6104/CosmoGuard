@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { LayoutDashboard } from "lucide-react";
 import IndiaMap from "./components/IndiaMap";
 import WeatherPanel from "./components/WeatherPanel";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Navigation from "./components/Navigation";
-
 
 const RC = {high:"#FF3B30",medium:"#FF9500",low:"#34C759"};
 
@@ -211,15 +211,49 @@ function RiskMapPage() {
 
 export default function App() {
   const [user, setUser] = useState(null);
+  const [ready, setReady] = useState(false);
+  const [weatherHistory, setWeatherHistory] = useState([]);
+  const [riskData, setRiskData] = useState(null);
+  const [evacuation, setEvacuation] = useState(null);
+  const [survey, setSurvey] = useState(() => {
+    const s = localStorage.getItem('disaster_readiness');
+    return s ? JSON.parse(s) : { floor: 0, has_power_backup: false, has_ac: false, supplies_days: 0 };
+  });
+
   const navigate = useNavigate();
+  const location = useLocation();
+  const isMapRoute = location.pathname === '/map';
+
+  const fetchData = async (u, s) => {
+    if (!u) return;
+    try {
+      const q = `&floor=${s.floor}&has_power_backup=${s.has_power_backup}&has_ac=${s.has_ac}&supplies_days=${s.supplies_days}`;
+      const [histRes, riskRes, evacRes] = await Promise.all([
+        fetch(`http://localhost:8000/api/v1/user/weather-history?lat=${u.lat}&lng=${u.lng}`),
+        fetch(`http://localhost:8000/api/v1/user/risk-analysis?lat=${u.lat}&lng=${u.lng}`),
+        fetch(`http://localhost:8000/api/v1/user/evacuation?lat=${u.lat}&lng=${u.lng}${q}`)
+      ]);
+
+      if (histRes.ok && riskRes.ok && evacRes.ok) {
+        const [hist, risk, evac] = await Promise.all([
+          histRes.json(), riskRes.json(), evacRes.json()
+        ]);
+        setWeatherHistory(hist.history || []);
+        setRiskData(risk);
+        setEvacuation(evac);
+      }
+    } catch (err) {
+      console.error("Error fetching global data:", err);
+    }
+  };
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
+      fetchData(parsedUser, survey);
       
-      // Auto-update GPS detection on load/login
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
@@ -230,13 +264,40 @@ export default function App() {
             };
             setUser(updatedUser);
             localStorage.setItem('user', JSON.stringify(updatedUser));
-            console.log("Location auto-detected and updated.");
+            fetchData(updatedUser, survey);
           },
-          (err) => console.log("Geolocation permission denied or error:", err)
+          (err) => console.log("Geo error:", err)
         );
       }
     }
+    setReady(true);
   }, []);
+
+  useEffect(() => {
+    if (user) fetchData(user, survey);
+  }, [survey]);
+
+  const getActiveDisaster = () => {
+    if (!riskData) return 'flood';
+    const dRisks = [
+      { id: 'drought', v: riskData.drought_risk },
+      { id: 'flood', v: riskData.flood_risk },
+      { id: 'heatwave', v: riskData.heatwave_risk },
+      { id: 'cyclone', v: riskData.cyclone_risk }
+    ];
+    return dRisks.reduce((max, x) => x.v > max.v ? x : max, dRisks[0]).id;
+  };
+
+  if (!ready) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#060B18', color: '#E2E8F0' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ border: '4px solid rgba(255,255,255,.1)', borderTop: '4px solid #6366F1', borderRadius: '50%', width: '40px', height: '40px', animation: 'spin 1s linear infinite', margin: '0 auto 20px' }}></div>
+          <p style={{ fontSize: '14px', fontWeight: '500', letterSpacing: '1px' }}>SHIELDING...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('user');
@@ -263,12 +324,63 @@ export default function App() {
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
 
-      {user && <Navigation />}
+      {user && !isMapRoute && (
+        <Navigation 
+          user={user} 
+          riskData={riskData} 
+          survey={survey} 
+          activeDisaster={getActiveDisaster()} 
+        />
+      )}
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowY: 'auto' }}>
+      {user && isMapRoute && (
+        <button 
+          onClick={() => navigate('/dashboard')}
+          style={{
+            position: 'absolute',
+            top: '24px',
+            right: '24px',
+            zIndex: 1000,
+            background: 'rgba(6, 11, 24, 0.8)',
+            border: '1px solid rgba(99, 102, 241, 0.3)',
+            color: 'white',
+            padding: '12px 20px',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontSize: '14px',
+            fontWeight: '600',
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseOver={(e) => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)'}
+          onMouseOut={(e) => e.currentTarget.style.background = 'rgba(6, 11, 24, 0.8)'}
+        >
+          <LayoutDashboard size={18} color="#6366F1" /> Back to Dashboard
+        </button>
+      )}
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowY: isMapRoute ? 'hidden' : 'auto' }}>
         <Routes>
           <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Auth setAuthUser={setUser} />} />
-          <Route path="/dashboard" element={user ? <Dashboard user={user} onLogout={handleLogout} /> : <Navigate to="/login" />} />
+          <Route 
+            path="/dashboard" 
+            element={user ? (
+              <Dashboard 
+                user={user} 
+                onLogout={handleLogout} 
+                weatherHistory={weatherHistory}
+                riskData={riskData}
+                evacuation={evacuation}
+                survey={survey}
+                setSurvey={setSurvey}
+                activeDisaster={getActiveDisaster()}
+              />
+            ) : <Navigate to="/login" />} 
+          />
           <Route path="/map" element={user ? <RiskMapPage /> : <Navigate to="/login" />} />
           <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
         </Routes>
