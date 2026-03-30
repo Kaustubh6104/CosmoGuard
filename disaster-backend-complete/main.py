@@ -6,6 +6,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
+from app.database import engine
+from app.models import Base
+from app.routes import flood, landslide, heatwave, cyclone, drought, combined, auth, personalized
+
+# Create database tables
+Base.metadata.create_all(bind=engine)
+
 app = FastAPI(
     title="DisasterShield Complete API",
     description="Advanced Multi-Hazard Disaster Prediction System",
@@ -21,9 +28,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Import routes
-from app.routes import flood, landslide, heatwave, cyclone, drought, combined
-
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+app.include_router(personalized.router, prefix="/api/v1/user", tags=["Personalized Data"])
 app.include_router(flood.router, prefix="/api/v1/predict", tags=["Flood"])
 app.include_router(landslide.router, prefix="/api/v1/predict", tags=["Landslide"])
 app.include_router(heatwave.router, prefix="/api/v1/predict", tags=["Heatwave"])
@@ -40,7 +46,8 @@ def root():
             "Landslide Prediction (Random Forest)",
             "Heatwave Forecast (LSTM Regression)",
             "Cyclone Path Prediction (ConvLSTM)",
-            "Drought Severity (XGBoost + NDVI)"
+            "Drought Severity (XGBoost + NDVI)",
+            "Personalized Risk Analysis"
         ],
         "docs": "/docs"
     }
