@@ -103,7 +103,7 @@ function predictDisasters(weather, lat) {
     return [{
       type: "Safe Conditions",
       icon: "✅",
-      probability: 85,
+      probability: 12,
       color: "#34C759",
       warning: "No major disaster risks detected",
       details: `Temperature: ${temp.toFixed(1)}°C, Wind: ${wind.toFixed(1)} km/h, 3-day Rain: ${rain3d.toFixed(1)}mm, Humidity: ${humidity}%`,
@@ -497,7 +497,7 @@ export default function IndiaMap({ points, onSelect, selectedId, userLocation })
                         <div style={{ color: pred.color, fontWeight: 700, fontSize: 22 }}>
                           {pred.probability}%
                         </div>
-                        <div style={{ color: "#6b7280", fontSize: 9 }}>Risk</div>
+                        <div style={{ color: "#6b7280", fontSize: 9 }}>Current Risk</div>
                       </div>
                     </div>
 
