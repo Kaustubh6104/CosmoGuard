@@ -10,56 +10,62 @@ class CycloneRequest(BaseModel):
 
 @router.post("/cyclone")
 async def predict_cyclone(request: CycloneRequest):
-    # Fetching LIVE data from Open-Meteo (includes wind gusts and surface pressure)
-    # Open-Meteo is free for educational use and doesn't require an API key.
+    # Fetching LIVE data (using Mean Sea Level pressure for accuracy)
+    # Surface pressure in cities like Pune is low due to altitude, causing false cyclone alarms.
     url = (
         f"https://api.open-meteo.com/v1/forecast?"
         f"latitude={request.lat}&longitude={request.lng}"
-        f"&current=wind_speed_10m,wind_gusts_10m,surface_pressure"
+        f"&current=wind_speed_10m,wind_gusts_10m,pressure_msl"
         f"&timezone=Asia%2FKolkata"
     )
     
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.get(url)
-        if response.status_code != 200:
-            return {"error": "Failed to fetch live weather data"}
         data = response.json()
     
-    # Extracting real-time values
     current = data.get('current', {})
-    wind_speed = current.get('wind_speed_10m', 0)
     wind_gusts = current.get('wind_gusts_10m', 0)
-    pressure = current.get('surface_pressure', 1013) # Normal sea level pressure is ~1013 hPa
+    msl_pressure = current.get('pressure_msl', 1013)
     
-    # IMD-based Cyclone Logic: Pressure drop is a key indicator
-    # Severe cyclones typically have pressure < 990 hPa
-    is_cyclonic = wind_gusts > 60 or pressure < 1000
+    # Distance from coast check (Scale: Pune 18.5N, 73.8E is ~100km inland)
+    # Coastal bounds roughly: Longitude < 74 (West) or > 80 (East) below 25N
+    is_coastal = (request.lat < 25) and (request.lng < 74 or request.lng > 80)
     
-    if pressure < 980 or wind_gusts > 120:
+    # IMD-based Cyclone Logic: Pressure drop at sea level
+    # Normal is ~1013. Severe cyclones are < 990.
+    pressure_drop = max(0, 1013 - msl_pressure)
+    
+    # Calculate base risk based on pressure and wind
+    base_risk = (pressure_drop * 4) + (wind_gusts * 0.5)
+    
+    # Apply inland penalty (cyclones lose power inland)
+    if not is_coastal:
+        base_risk = base_risk * 0.25 # 75% reduction for inland regions
+    
+    # Determine category
+    if base_risk > 80:
         intensity = "Very Severe Cyclonic Storm"
         category = 3
-    elif pressure < 995 or wind_gusts > 80:
+    elif base_risk > 45:
         intensity = "Severe Cyclonic Storm"
         category = 2
-    elif is_cyclonic:
-        intensity = "Cyclonic Storm / Deep Depression"
+    elif base_risk > 20:
+        intensity = "Cyclonic Storm / Depression"
         category = 1
     else:
-        intensity = "Normal Weather / No Cyclone"
+        intensity = "Normal Weather"
         category = 0
 
     return {
         "live_data": {
-            "wind_speed_kmh": wind_speed,
             "wind_gusts_kmh": wind_gusts,
-            "surface_pressure_hpa": pressure
+            "msl_pressure_hpa": msl_pressure,
+            "is_coastal_sector": is_coastal
         },
         "prediction": {
             "intensity": intensity,
             "category": category,
+            "risk_percentage": round(base_risk, 1),
             "alert_level": "RED" if category >= 2 else "YELLOW" if category == 1 else "GREEN"
-        },
-        "recommendations": [
-            "Evacuate coastal zones" if category >= 2 else "Stay indoors and monitor news"
-        ] if category > 0 else ["No immediate cyclone threat detected"]
+        }
     }

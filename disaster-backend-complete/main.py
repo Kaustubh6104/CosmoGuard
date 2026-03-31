@@ -8,7 +8,8 @@ import uvicorn
 
 from app.database import engine
 from app.models import Base
-from app.routes import flood, landslide, heatwave, cyclone, drought, combined, auth, personalized
+from app.routes import flood, landslide, heatwave, cyclone, drought, combined, auth, personalized, news
+
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -25,7 +26,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://localhost:3000",
-        "https://cosmo-guard-x2jf.vercel.app"
+        "https://cosmo-guard-x2jf.vercel.app",
+        "https://cosmo-guard-x2jf.vercel.app/"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -40,6 +42,8 @@ app.include_router(heatwave.router, prefix="/api/v1/predict", tags=["Heatwave"])
 app.include_router(cyclone.router, prefix="/api/v1/predict", tags=["Cyclone"])
 app.include_router(drought.router, prefix="/api/v1/predict", tags=["Drought"])
 app.include_router(combined.router, prefix="/api/v1", tags=["Combined Analysis"])
+app.include_router(news.router, prefix="/api/v1", tags=["Live Intel Feed"])
+
 
 @app.get("/")
 def root():
