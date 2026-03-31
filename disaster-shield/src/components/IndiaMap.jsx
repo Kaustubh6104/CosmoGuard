@@ -8,6 +8,7 @@ export default function IndiaMap({ points, onSelect, userLocation }) {
   const clickMarkerRef = useRef(null);
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [leafletLoaded, setLeafletLoaded] = useState(false);
 
   useEffect(() => {
@@ -31,10 +32,8 @@ export default function IndiaMap({ points, onSelect, userLocation }) {
       const { lat, lng } = e.latlng;
       const L = window.L;
       
-      // Clear previous click marker
       if (clickMarkerRef.current) clickMarkerRef.current.remove();
       
-      // Add RED MISSION PIN
       const redIcon = L.divIcon({
         className: 'mission-pin',
         html: '<div style="width:14px;height:14px;background:#EF4444;border:2px solid white;border-radius:50%;box-shadow:0 0 20px #EF4444;animation:pulse-red 1.5s infinite"></div>',
@@ -44,6 +43,7 @@ export default function IndiaMap({ points, onSelect, userLocation }) {
 
       setLoading(true);
       setAnalysis(null);
+      setError(null);
       
       try {
         const res = await fetch(`${API_BASE_URL}/api/v1/predict-all`, {
@@ -51,10 +51,12 @@ export default function IndiaMap({ points, onSelect, userLocation }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ lat, lng })
         });
+        if (!res.ok) throw new Error("Satellite Link Timed Out");
         const data = await res.json();
         setAnalysis({ lat: lat.toFixed(3), lng: lng.toFixed(3), ...data });
       } catch (err) {
         console.error("Map Analysis Failed:", err);
+        setError("SATELLITE UPLINK ERROR: Backend connection unreachable. Retrying link...");
       } finally {
         setLoading(false);
       }
@@ -63,7 +65,6 @@ export default function IndiaMap({ points, onSelect, userLocation }) {
     setTimeout(() => leafletMap.current?.invalidateSize(), 500);
   }, [leafletLoaded]);
 
-  // Sync User Location (BLUE)
   useEffect(() => {
     if (!leafletMap.current || !userLocation || !window.L) return;
     const L = window.L;
@@ -79,6 +80,7 @@ export default function IndiaMap({ points, onSelect, userLocation }) {
 
   const clearAnalysis = () => {
     setAnalysis(null);
+    setError(null);
     if (clickMarkerRef.current) clickMarkerRef.current.remove();
   };
 
@@ -89,20 +91,16 @@ export default function IndiaMap({ points, onSelect, userLocation }) {
         @keyframes pulse-red { 0% { transform: scale(1); box-shadow: 0 0 0px #EF4444; } 50% { transform: scale(1.2); box-shadow: 0 0 20px #EF4444; } 100% { transform: scale(1); box-shadow: 0 0 0px #EF4444; } }
       `}</style>
       
-      {!leafletLoaded && (
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6366F1', fontSize: '11px', fontWeight: 'bold', zIndex: 10, letterSpacing: '2px' }}>
-           RE-ESTABLISHING SATELLITE UPLINK...
-        </div>
-      )}
-
       <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
       
-      {(loading || analysis) && (
+      {(loading || analysis || error) && (
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(6,11,24,0.98)", padding: '24px 32px', zIndex: 10001, borderTop: "2px solid #EF4444", backdropFilter: 'blur(16px)' }}>
            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div>
-                <h3 style={{ fontSize: '16px', color: "white", fontWeight: '900', letterSpacing: '0.5px' }}>TARGET SECTOR: {analysis?.lat || '--'} N, {analysis?.lng || '--'} E</h3>
-                <p style={{ fontSize: '10px', color: loading ? '#EF4444' : '#34C759', fontWeight: 'bold' }}>⚡ {loading ? 'SCANNING GEOSPATIAL VECTORS...' : 'MISSION BRIEFING LOADED'}</p>
+                <h3 style={{ fontSize: '15px', color: "white", fontWeight: '900', letterSpacing: '1px' }}>SECTOR SCAN: {analysis?.lat || '--'}, {analysis?.lng || '--'}</h3>
+                <p style={{ fontSize: '10px', color: error ? '#EF4444' : loading ? '#EF4444' : '#34C759', fontWeight: 'bold' }}>
+                  ⚡ {error ? 'DANGER: DATA LINK CRITICAL' : loading ? 'SCANNING GEOSPATIAL VECTORS...' : 'MISSION BRIEFING LOADED'}
+                </p>
               </div>
               <button onClick={clearAnalysis} style={{ color: "#94A3B8", background: "transparent", border: "none", cursor: "pointer", fontSize: '20px' }}>✕</button>
            </div>
@@ -112,12 +110,16 @@ export default function IndiaMap({ points, onSelect, userLocation }) {
                 <div style={{ border: '2px solid rgba(239,68,68,0.1)', borderTop: '2px solid #EF4444', borderRadius: '50%', width: '24px', height: '24px', animation: 'spin 1s linear infinite' }}></div>
                 <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
              </div>
+           ) : error ? (
+             <div style={{ padding: '20px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '12px', color: '#EF4444', fontSize: '12px', textAlign: 'center', fontWeight: 'bold' }}>
+                ⚠️ {error}
+             </div>
            ) : (
              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
                 {Object.entries(analysis?.predictions || {}).map(([name, pred]) => (
                   <div key={name} style={{ background: "rgba(255,255,255,0.02)", padding: '12px', borderRadius: '12px', border: pred.risk_percentage > 50 ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(255,255,255,0.05)' }}>
                      <p style={{ fontSize: '8px', color: '#94A3B8', fontWeight: '900', letterSpacing: '1px' }}>{name.toUpperCase()}</p>
-                     <p style={{ fontSize: '20px', fontWeight: '900', color: pred.risk_percentage > 50 ? '#EF4444' : '#34C759', margin: '2px 0' }}>{pred.risk_percentage}%</p>
+                     <p style={{ fontSize: '18px', fontWeight: '900', color: pred.risk_percentage > 50 ? '#EF4444' : '#34C759', margin: '2px 0' }}>{pred.risk_percentage}%</p>
                      <p style={{ fontSize: '10px', color: '#CBD5E1', lineHeight: '1.3', height: '2.6em', overflow: 'hidden' }}>{pred.recommended_actions?.[0]}</p>
                   </div>
                 ))}
