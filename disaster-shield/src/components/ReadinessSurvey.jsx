@@ -26,11 +26,21 @@ const ReadinessSurvey = ({ onSave, activeDisaster }) => {
 
   const calculateScore = () => {
     let score = 0;
+    // Requirement: Upper Floor Access: 20%
     if (survey.floor > 1) score += 20;
-    if (survey.supplies_days >= 7) score += 40;
-    else if (survey.supplies_days > 0) score += (survey.supplies_days / 7) * 40;
+    
+    // Requirement: Water/Food Stock (7+ days): 40%
+    if (survey.supplies_days >= 7) {
+      score += 40;
+    } else if (survey.supplies_days > 0) {
+      // Partial credit for fewer days
+      score += Math.round((survey.supplies_days / 7) * 40);
+    }
+    
+    // Requirement: Power Backup: 40%
     if (survey.has_power_backup) score += 40;
-    return Math.min(100, Math.round(score));
+    
+    return Math.min(100, score);
   };
 
   const updateSurvey = (newSurvey) => {
@@ -40,14 +50,16 @@ const ReadinessSurvey = ({ onSave, activeDisaster }) => {
     if (onSave) onSave(updated);
   };
 
+
   const handleTogglePower = () => {
     updateSurvey({ has_power_backup: !survey.has_power_backup });
   };
 
   const openModal = (type) => {
-    setInputValue(survey[type === 'floor' ? 'floor' : 'supplies_days'].toString());
+    setInputValue((survey[type === 'floor' ? 'floor' : 'supplies_days'] || 0).toString());
     setModalConfig({ type, isOpen: true });
   };
+
 
   const handleModalSave = () => {
     const val = parseInt(inputValue) || 0;
@@ -154,7 +166,8 @@ const ReadinessSurvey = ({ onSave, activeDisaster }) => {
           <div style={{ background: '#1E293B', padding: '24px', borderRadius: '16px', width: '250px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h4 style={{ fontSize: '16px', fontWeight: '600' }}>
-                {modalConfig.type === 'floor' ? 'Floor Level' : 'Days of Supplies'}
+                {modalConfig?.type === 'floor' ? 'Floor Level' : 'Days of Supplies'}
+
               </h4>
               <X size={18} style={{ cursor: 'pointer', color: '#94A3B8' }} onClick={() => setModalConfig(null)} />
             </div>
