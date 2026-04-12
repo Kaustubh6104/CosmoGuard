@@ -20,30 +20,31 @@ async def predict_landslide(request: LandslideRequest):
     
     rain_7d = sum(d.get('daily', {}).get('precipitation_sum', [0]*7)[:7])
     
-    # Slope risk (higher in mountainous regions)
-    is_hills = request.lat > 28 or (request.lat > 20 and request.lat < 25 and request.lng < 78)
-    slope = 35 if is_hills else 5
+    # Slope risk (Continuous mathematical simulation)
+    # High risk in Himalayas (Lat > 28) and Western Ghats (Long < 74 below 20N)
+    dist_him = max(0, 32 - request.lat)
+    dist_ghats = abs(73.5 - request.lng) if request.lat < 20 else 10
     
-    # Calculate probability
-    if is_hills and rain_7d > 200:
-        prob = 85
-    elif is_hills and rain_7d > 100:
-        prob = 65
-    elif rain_7d > 150:
-        prob = 45
-    else:
-        prob = 15
+    import math
+    mountain_influence = math.exp(-(dist_him**2 / 4)) + math.exp(-(dist_ghats**2 / 2))
+    slope = 5 + 40 * mountain_influence
+    
+    # Calculate probability (Continuous)
+    # Rainfall impact: 7-day cumulative above 100mm starts triggering risk
+    rain_impact = min(1, rain_7d / 300)
+    prob = int(20 + 75 * (mountain_influence * 0.6 + rain_impact * 0.4))
+    prob = min(95, max(5, prob))
     
     return {
         'probability': prob,
         'slope_gradient': slope,
         'rainfall_7d': rain_7d,
         'vegetation_cover': 0.65,
-        'soil_type': 'clay' if is_hills else 'sandy',
-        'risk_zones': ['Mountain areas', 'Steep slopes'] if is_hills else [],
-        'recommendations': [
-            'Avoid steep slopes during heavy rain',
-            'Monitor cracks in hillsides',
-            'Clear drainage channels'
-        ] if prob > 60 else ['Monitor weather updates']
+    'soil_type': 'clay/rock' if mountain_influence > 0.5 else 'sandy loam',
+    'risk_zones': ['Mountainous Sector'] if mountain_influence > 0.3 else ['Stable Terrain'],
+    'recommendations': [
+        'Avoid steep slopes during heavy rain',
+        'Monitor cracks in hillsides',
+        'Clear drainage channels'
+    ] if prob > 60 else ['Monitor local rainfall data']
     }

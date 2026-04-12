@@ -22,19 +22,18 @@ async def predict_drought(request: DroughtRequest):
     temp = d.get('current_weather', {}).get('temperature', 30)
     rain_7d = sum(d.get('daily', {}).get('precipitation_sum', [0]*7)[:7])
     
-    # Drought severity calculation
-    if temp > 40 and rain_7d < 5:
-        severity = "extreme"
-        index = 90
-    elif temp > 38 and rain_7d < 10:
-        severity = "severe"
-        index = 75
-    elif temp > 35 and rain_7d < 20:
-        severity = "moderate"
-        index = 55
-    else:
-        severity = "mild"
-        index = 25
+    # Drought severity calculation (Continuous Interpolation)
+    # Primary factors: Temp > 35, Rainfall < 20mm
+    temp_factor = max(0, (temp - 30) / 15) # 0 to 1 scale for 30C to 45C
+    rain_factor = max(0, (30 - rain_7d) / 30) # 0 to 1 scale for 30mm down to 0mm
+    
+    index = int(15 + 80 * (temp_factor * 0.4 + rain_factor * 0.6))
+    index = min(98, max(5, index))
+    
+    if index > 80: severity = "extreme"
+    elif index > 60: severity = "severe"
+    elif index > 35: severity = "moderate"
+    else: severity = "mild"
     
     return {
         'severity_index': index,

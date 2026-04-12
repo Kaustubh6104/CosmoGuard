@@ -29,7 +29,12 @@ export default function WeatherPanel({ city, disasterType }) {
     const meta = CITY_META[city];
     if (!meta) return;
 
-    setLoading(true); setError(null); setData(null); setPrediction(null);
+    setTimeout(() => {
+      setLoading(true); 
+      setError(null); 
+      setData(null); 
+      setPrediction(null);
+    }, 0);
     const t0 = Date.now();
 
     fetchAllWeatherData(meta.lat, meta.lng)

@@ -20,19 +20,15 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# CORS
+# Open CORS for the presentation demo stability
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "https://cosmo-guard-x2jf.vercel.app",
-        "https://cosmo-guard-x2jf.vercel.app/"
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(personalized.router, prefix="/api/v1/user", tags=["Personalized Data"])

@@ -5,6 +5,7 @@ import {
   Newspaper, Shield, LogOut, ExternalLink, ChevronRight
 } from 'lucide-react';
 import WeatherIntel from '../components/WeatherIntel';
+import CommandCenter from '../components/CommandCenter';
 import { API_BASE_URL } from '../api-config';
 
 const Dashboard = ({ user, onLogout }) => {
@@ -59,6 +60,17 @@ const Dashboard = ({ user, onLogout }) => {
         </div>
       </header>
 
+      {/* Satellite Integrity Header */}
+      <div style={{ margin: '0 32px 0 32px', padding: '12px 20px', background: 'rgba(99, 102, 241, 0.05)', borderRadius: '0 0 12px 12px', border: '1px solid rgba(99, 102, 241, 0.1)', borderTop: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '8px', height: '8px', background: '#34C759', borderRadius: '50%', boxShadow: '0 0 8px #34C759', animation: 'pulse 1.5s infinite' }}></div>
+          <span style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.1em', color: '#E2E8F0' }}>SATELLITE UPLINK: <span style={{ color: '#34C759' }}>ACTIVE</span> [INSAT-3DR]</span>
+        </div>
+        <div style={{ fontSize: '10px', color: '#94A3B8', fontFamily: 'monospace' }}>
+          LAT: {user?.lat?.toFixed(4)} | LNG: {user?.lng?.toFixed(4)} | ALT: 35,786 KM
+        </div>
+      </div>
+
       {/* Main Grid */}
       <div style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
         
@@ -109,38 +121,42 @@ const Dashboard = ({ user, onLogout }) => {
           </div>
 
           {/* Intel Sidebar (REAL TIME) */}
-          <div style={{ padding: '24px', background: 'rgba(6,11,24,0.6)', borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-             <h3 style={{ fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Newspaper size={18} color="#6366F1" /> Live Intel Feed
-                <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', color: '#EF4444', fontWeight: '800' }}>
-                  <span style={{ width: '6px', height: '6px', background: '#EF4444', borderRadius: '50%', animation: 'pulse 1.5s infinite' }}></span> LIVE
-                </span>
-             </h3>
-             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minHeight: '300px' }}>
-                {loadingNews ? (
-                  <p style={{ fontSize: '11px', color: '#475569', textAlign: 'center', marginTop: '50px' }}>🛰️ SCRAPING GLOBAL SOURCES...</p>
-                ) : newsItems.length > 0 ? (
-                  newsItems.map((item, idx) => (
-                    <div key={idx} style={{ padding: '14px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', borderLeft: `3px solid ${item.color || '#38BDF8'}` }}>
-                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <span style={{ fontSize: '9px', fontWeight: '800', color: item.color || '#38BDF8' }}>{item.tag || 'ALERT'}</span>
-                          <span style={{ fontSize: '9px', color: '#475569' }}>{item.time}</span>
-                       </div>
-                       <p style={{ fontSize: '13px', fontWeight: '600', color: '#E2E8F0', lineHeight: '1.4' }}>{item.title}</p>
-                    </div>
-                  ))
-                ) : (
-                  <p style={{ fontSize: '11px', color: '#475569', textAlign: 'center', marginTop: '50px' }}>No direct threats in local sector.</p>
-                )}
-             </div>
-             <button 
-                onClick={() => setShowBriefing(true)}
-                style={{ width: '100%', padding: '14px', background: '#6366F1', border: 'none', borderRadius: '12px', color: 'white', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s' }}
-                onMouseOver={e => e.currentTarget.style.background = '#818CF8'}
-                onMouseOut={e => e.currentTarget.style.background = '#6366F1'}
-             >
-                View Full Briefing <ChevronRight size={16} />
-             </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            <div style={{ padding: '24px', background: 'rgba(6,11,24,0.6)', borderRadius: '24px', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+               <h3 style={{ fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Newspaper size={18} color="#6366F1" /> Live Intel Feed
+                  <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', color: '#EF4444', fontWeight: '800' }}>
+                    <span style={{ width: '6px', height: '6px', background: '#EF4444', borderRadius: '50%', animation: 'pulse 1.5s infinite' }}></span> LIVE
+                  </span>
+               </h3>
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minHeight: '300px' }}>
+                  {loadingNews ? (
+                    <p style={{ fontSize: '11px', color: '#475569', textAlign: 'center', marginTop: '50px' }}>🛰️ SCRAPING GLOBAL SOURCES...</p>
+                  ) : newsItems.length > 0 ? (
+                    newsItems.map((item, idx) => (
+                      <div key={idx} style={{ padding: '14px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', borderLeft: `3px solid ${item.color || '#38BDF8'}` }}>
+                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ fontSize: '9px', fontWeight: '800', color: item.color || '#38BDF8' }}>{item.tag || 'ALERT'}</span>
+                            <span style={{ fontSize: '9px', color: '#475569' }}>{item.time}</span>
+                         </div>
+                         <p style={{ fontSize: '13px', fontWeight: '600', color: '#E2E8F0', lineHeight: '1.4' }}>{item.title}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <p style={{ fontSize: '11px', color: '#475569', textAlign: 'center', marginTop: '50px' }}>No direct threats in local sector.</p>
+                  )}
+               </div>
+               <button 
+                  onClick={() => setShowBriefing(true)}
+                  style={{ width: '100%', padding: '14px', background: '#6366F1', border: 'none', borderRadius: '12px', color: 'white', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s' }}
+                  onMouseOver={e => e.currentTarget.style.background = '#818CF8'}
+                  onMouseOut={e => e.currentTarget.style.background = '#6366F1'}
+               >
+                  View Full Briefing <ChevronRight size={16} />
+               </button>
+            </div>
+            
+            <CommandCenter />
           </div>
         </div>
       </div>

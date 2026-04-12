@@ -75,7 +75,7 @@ const NeuralAdvisor = ({ riskData, user, disasterType }) => {
         }
       }, 30);
 
-    } catch (err) {
+    } catch {
       setIsTyping(false);
       const errorMsg = "Neural Alert: The AI Engine is currently optimizing. Please follow local safety protocols.";
       setChat(prev => [...prev, { role: 'ai', text: errorMsg, time: 'System Trace' }]);

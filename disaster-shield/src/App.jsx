@@ -12,12 +12,10 @@ const RC = {high:"#FF3B30",medium:"#FF9500",low:"#34C759"};
 
 function RiskMapPage() {
   const [dis, setDis] = useState("flood");
-  const [tab, setTab] = useState("map");
   const [selected, setSelected] = useState(null);
   const [userLoc, setUserLoc] = useState(null);
   const [tracking, setTracking] = useState(false);
   const [points, setPoints] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   const DISASTERS = [
     {id:"cyclone",icon:"🌀",label:"Cyclone",col:"#818CF8"},
@@ -27,21 +25,18 @@ function RiskMapPage() {
   
   useEffect(() => {
     const fetchZones = async () => {
-      setLoading(true);
       try {
         const res = await fetch(`${API_BASE_URL}/api/v1/user/zones-risk?disaster_type=${dis}`);
         const data = await res.json();
         setPoints(data.points || []);
       } catch (err) {
         console.error("Error fetching map risks:", err);
-      } finally {
-        setLoading(false);
       }
     };
     fetchZones();
   }, [dis]);
 
-  const dObj = DISASTERS.find(x => x.id === dis) || DISASTERS[0];
+  // const dObj = DISASTERS.find(x => x.id === dis) || DISASTERS[0];
 
   const toggleTrack = () => {
     if (!tracking) {
@@ -87,9 +82,7 @@ function RiskMapPage() {
 export default function App() {
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false);
-  const [weatherHistory, setWeatherHistory] = useState([]);
   const [riskData, setRiskData] = useState(null);
-  const [evacuation, setEvacuation] = useState(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -105,10 +98,8 @@ export default function App() {
       ]);
 
       if (histRes.ok && riskRes.ok && evacRes.ok) {
-        const [hist, risk, evac] = await Promise.all([histRes.json(), riskRes.json(), evacRes.json()]);
-        setWeatherHistory(hist.history || []);
+        const [_, risk] = await Promise.all([histRes.json(), riskRes.json(), evacRes.json()]);
         setRiskData(risk);
-        setEvacuation(evac);
       }
     } catch (err) {
       console.error("Fetch error:", err);
@@ -119,8 +110,10 @@ export default function App() {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
-      setUser(parsedUser);
-      fetchData(parsedUser);
+      setTimeout(() => {
+        setUser(parsedUser);
+        fetchData(parsedUser);
+      }, 0);
     }
     setTimeout(() => setReady(true), 1500);
   }, []);

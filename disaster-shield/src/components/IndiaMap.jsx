@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "../api-config";
 
-export default function IndiaMap({ points, onSelect, userLocation }) {
+export default function IndiaMap({ userLocation }) {
   const mapRef = useRef(null);
   const leafletMap = useRef(null);
   const userMarkerRef = useRef(null);

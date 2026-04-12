@@ -50,25 +50,33 @@ class FloodPredictor:
         geo_factors = self._get_geographical_factors(lat, lng)
         geo_risk = geo_factors['combined_risk']  # 0-1 scale
         
-        # STEP 1: Calculate rainfall-based score (PRIMARY)
+        # STEP 1: Calculate rainfall-based score (CONTINUOUS SCALING)
         if daily_rain >= self.thresholds['extreme']:
             rainfall_score = 95
             category = "EXTREME"
-        elif daily_rain >= self.thresholds['very_heavy']:
-            rainfall_score = 85
-            category = "VERY HEAVY"
-        elif daily_rain >= self.thresholds['heavy']:
-            rainfall_score = 70
-            category = "HEAVY"
-        elif daily_rain >= self.thresholds['moderate']:
-            rainfall_score = 45
-            category = "MODERATE"
-        elif daily_rain >= self.thresholds['light']:
-            rainfall_score = 25
-            category = "LIGHT"
         else:
-            rainfall_score = 10  # Almost no rain
-            category = "MINIMAL"
+            # Interpolated scaling for better sensitivity
+            if daily_rain >= self.thresholds['very_heavy']:
+                base = 85
+                diff = 10 * (daily_rain - 115) / (200 - 115)
+                category = "VERY HEAVY"
+            elif daily_rain >= self.thresholds['heavy']:
+                base = 70
+                diff = 15 * (daily_rain - 64.5) / (115 - 64.5)
+                category = "HEAVY"
+            elif daily_rain >= self.thresholds['moderate']:
+                base = 45
+                diff = 25 * (daily_rain - 15.5) / (64.5 - 15.5)
+                category = "MODERATE"
+            elif daily_rain >= self.thresholds['light']:
+                base = 25
+                diff = 20 * (daily_rain - 2.5) / (15.5 - 2.5)
+                category = "LIGHT"
+            else:
+                base = 5
+                diff = 20 * (daily_rain / 2.5)
+                category = "MINIMAL"
+            rainfall_score = base + diff
         
         # STEP 2: Apply rainfall weight (70%)
         weighted_rainfall = rainfall_score * self.weights['rainfall']
@@ -146,24 +154,31 @@ class FloodPredictor:
             (26.9, 80.9): {'risk': 0.80, 'name': 'Lucknow (Plain)', 'type': 'River Plain'},
         }
         
-        river_proximity = 0.3  # default moderate
+        # Check proximity to high-risk zones using Gaussian decay
+        max_proximity_risk = 0.2
         location_type = 'General Area'
-        
-        # Check if near high-risk zone
         for (r_lat, r_lng), info in high_risk_zones.items():
             dist = ((lat - r_lat)**2 + (lng - r_lng)**2)**0.5
-            if dist < 1.0:
-                river_proximity = info['risk']
-                location_type = info['type']
-                break
+            # Proximity risk: contribution based on distance (sigma = 2.0 degrees (~220km))
+            proximity_impact = info['risk'] * np.exp(-(dist**2 / (2 * 1.5**2)))
+            if proximity_impact > max_proximity_risk:
+                max_proximity_risk = proximity_impact
+                location_type = info['name']
+
+        river_proximity = max_proximity_risk
         
-        # Elevation factor
-        if lat < 20 or (lat > 24 and lat < 28 and lng > 85):
-            elevation_norm = 0.2  # Low elevation = high risk
-        elif lat > 30:
-            elevation_norm = 0.7  # Hills = lower flood risk
-        else:
-            elevation_norm = 0.5  # Moderate
+        # Elevation factor (Continuous variation based on Latitude/Longitude)
+        # Higher risk (lower elevation) in plains and coasts
+        # Simple elevation model for India:
+        # High: Himalayas (lat > 30), Western Ghats (lng < 74)
+        # Low: Indo-Gangetic Plain, Deltas
+        elevation_base = 0.5
+        if lat > 30: elevation_base = 0.8
+        elif lat < 20: elevation_base = 0.3
+        
+        # Add subtle variation based on coordinates
+        elevation_norm = elevation_base + (np.sin(lat) + np.cos(lng)) * 0.1
+        elevation_norm = min(0.9, max(0.1, elevation_norm))
         
         # Drainage (worse in dense urban areas)
         urban_centers = [(28.7, 77.1), (19.0, 72.8), (13.0, 80.2), (22.5, 88.3)]
@@ -222,22 +237,25 @@ class FloodPredictor:
         """Get recommendations based on ACTUAL conditions"""
         recs = []
         
-        if daily_rain > 115:
+        if daily_rain >= 115:
             recs.append("🚨 VERY HEAVY RAINFALL DETECTED")
             recs.append("Evacuate low-lying areas IMMEDIATELY")
             recs.append("Do NOT attempt to cross flooded roads")
             recs.append("Move to upper floors or high ground")
             recs.append("Stock emergency supplies (48h minimum)")
-        elif daily_rain > 64:
+        elif daily_rain >= 64.5:
             recs.append("⚠️ HEAVY RAINFALL - High flood risk")
             recs.append("Avoid flood-prone areas")
             recs.append("Keep emergency kit ready")
             recs.append("Monitor local weather updates")
-        elif daily_rain > 15:
+        elif daily_rain >= 15.5:
             recs.append("Moderate rainfall - Monitor situation")
             recs.append("Clear drainage around property")
             recs.append("Identify safe evacuation routes")
-        elif daily_rain < 5:
+        elif daily_rain >= 2.5:
+            recs.append("Light rainfall - Conditions monitoring")
+            recs.append("Check for local waterlogging")
+        else:
             recs.append("✅ Low rainfall - Normal conditions")
             recs.append("No immediate flood risk")
         

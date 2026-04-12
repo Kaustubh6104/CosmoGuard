@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Map, Shield } from 'lucide-react';
 import NeuralAdvisor from './NeuralAdvisor';
 
-const Navigation = ({ user, riskData, survey, activeDisaster }) => {
+const Navigation = ({ user, riskData, activeDisaster }) => {
   return (
     <nav style={{
       width: '320px',

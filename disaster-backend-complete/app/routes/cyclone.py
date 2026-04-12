@@ -27,9 +27,15 @@ async def predict_cyclone(request: CycloneRequest):
     wind_gusts = current.get('wind_gusts_10m', 0)
     msl_pressure = current.get('pressure_msl', 1013)
     
-    # Distance from coast check (Scale: Pune 18.5N, 73.8E is ~100km inland)
-    # Coastal bounds roughly: Longitude < 74 (West) or > 80 (East) below 25N
-    is_coastal = (request.lat < 25) and (request.lng < 74 or request.lng > 80)
+    # Distance from coast check - Continuous Scaling Logic
+    # Major coastal nodes: Mumbai (19, 72), Chennai (13, 80), Kolkata (22, 88), Kochi (10, 76)
+    coastal_nodes = [(19.0, 72.8), (13.1, 80.3), (22.5, 88.4), (9.9, 76.3), (21.0, 72.0)]
+    min_dist = min([((request.lat - c_lat)**2 + (request.lng - c_lng)**2)**0.5 for (c_lat, c_lng) in coastal_nodes])
+    
+    # Gaussian decay for coastal influence (sigma = 3.0 degrees ~ 330km)
+    import math
+    coast_influence = math.exp(-(min_dist**2 / (2 * 2.5**2)))
+    is_coastal = min_dist < 1.5 # Boolean for summary but we use the influence for math
     
     # IMD-based Cyclone Logic: Pressure drop at sea level
     # Normal is ~1013. Severe cyclones are < 990.
@@ -38,18 +44,18 @@ async def predict_cyclone(request: CycloneRequest):
     # Calculate base risk based on pressure and wind
     base_risk = (pressure_drop * 4) + (wind_gusts * 0.5)
     
-    # Apply inland penalty (cyclones lose power inland)
-    if not is_coastal:
-        base_risk = base_risk * 0.25 # 75% reduction for inland regions
+    # Apply continuous coastal scaling (no hard cut-offs)
+    # Inland regions maintain some risk but significantly scaled down
+    final_risk = base_risk * (0.2 + 0.8 * coast_influence)
     
     # Determine category
-    if base_risk > 80:
+    if final_risk > 80:
         intensity = "Very Severe Cyclonic Storm"
         category = 3
-    elif base_risk > 45:
+    elif final_risk > 45:
         intensity = "Severe Cyclonic Storm"
         category = 2
-    elif base_risk > 20:
+    elif final_risk > 20:
         intensity = "Cyclonic Storm / Depression"
         category = 1
     else:
@@ -65,7 +71,7 @@ async def predict_cyclone(request: CycloneRequest):
         "prediction": {
             "intensity": intensity,
             "category": category,
-            "risk_percentage": round(base_risk, 1),
+            "risk_percentage": round(final_risk, 1),
             "alert_level": "RED" if category >= 2 else "YELLOW" if category == 1 else "GREEN"
         }
     }

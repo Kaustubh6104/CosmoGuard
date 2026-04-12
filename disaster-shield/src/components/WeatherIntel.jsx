@@ -23,7 +23,7 @@ const fetchWeather = async (lat, lng) => {
       date: (() => {
         try {
           return format(new Date(time), 'EEE, MMM d');
-        } catch (e) {
+        } catch {
           return time;
         }
       })(),
