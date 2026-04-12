@@ -80,7 +80,10 @@ function RiskMapPage() {
 }
 
 export default function App() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('user');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [ready, setReady] = useState(false);
   const [riskData, setRiskData] = useState(null);
 
@@ -89,7 +92,7 @@ export default function App() {
   const isMapRoute = location.pathname === '/map';
 
   const fetchData = async (u) => {
-    if (!u) return;
+    if (!u) return null;
     try {
       const [histRes, riskRes, evacRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/v1/user/weather-history?lat=${u.lat}&lng=${u.lng}`),
@@ -98,25 +101,33 @@ export default function App() {
       ]);
 
       if (histRes.ok && riskRes.ok && evacRes.ok) {
-        const [_, risk] = await Promise.all([histRes.json(), riskRes.json(), evacRes.json()]);
-        setRiskData(risk);
+        const [_hist, risk, _evac] = await Promise.all([histRes.json(), riskRes.json(), evacRes.json()]);
+        return risk;
       }
     } catch (err) {
       console.error("Fetch error:", err);
     }
+    return null;
   };
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      const parsedUser = JSON.parse(savedUser);
-      setTimeout(() => {
-        setUser(parsedUser);
-        fetchData(parsedUser);
-      }, 0);
+    let active = true;
+    
+    if (user) {
+      fetchData(user).then(data => {
+        if (active && data) setRiskData(data);
+      });
     }
-    setTimeout(() => setReady(true), 1500);
-  }, []);
+
+    const timer = setTimeout(() => {
+      if (active) setReady(true);
+    }, 1500);
+    
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [user]);
 
   const getActiveDisaster = () => {
     if (!riskData) return 'flood';

@@ -23,14 +23,14 @@ export default function IndiaMap({ userLocation }) {
 
   useEffect(() => {
     if (!leafletLoaded || !mapRef.current || !window.L || leafletMap.current) return;
-    const L = window.L;
+    const { L } = window;
     leafletMap.current = L.map(mapRef.current, { center: [22, 82], zoom: 5, attributionControl: false, zoomControl: true });
     L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}").addTo(leafletMap.current);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png", { opacity: 0.7 }).addTo(leafletMap.current);
 
     leafletMap.current.on("click", async (e) => {
       const { lat, lng } = e.latlng;
-      const L = window.L;
+      const { L } = window;
       
       if (clickMarkerRef.current) clickMarkerRef.current.remove();
       
@@ -67,7 +67,7 @@ export default function IndiaMap({ userLocation }) {
 
   useEffect(() => {
     if (!leafletMap.current || !userLocation || !window.L) return;
-    const L = window.L;
+    const { L } = window;
     if (userMarkerRef.current) userMarkerRef.current.remove();
     const userIcon = L.divIcon({
       className: 'user-marker',

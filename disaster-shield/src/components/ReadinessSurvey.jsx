@@ -2,29 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Droplets, Zap, ArrowUpCircle, X } from 'lucide-react';
 
 const ReadinessSurvey = ({ onSave }) => {
-  const [survey, setSurvey] = useState({
-    floor: 0,
-    has_power_backup: false,
-    supplies_days: 0
+  const [survey, setSurvey] = useState(() => {
+    try {
+      const saved = localStorage.getItem('disaster_readiness');
+      return saved ? JSON.parse(saved) : {
+        floor: 0,
+        has_power_backup: false,
+        supplies_days: 0
+      };
+    } catch (e) {
+      console.error("Failed to parse readiness storage", e);
+      return { floor: 0, has_power_backup: false, supplies_days: 0 };
+    }
   });
 
   const [modalConfig, setModalConfig] = useState(null); // { type: 'floor' | 'supplies', isOpen: false }
   const [inputValue, setInputValue] = useState('');
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('disaster_readiness');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setTimeout(() => {
-        setSurvey(parsed);
-        if (onSave) onSave(parsed);
-      }, 0);
-    }
-  } catch (e) {
-    console.error("Failed to parse readiness storage", e);
-  }
-}, [onSave]);
+    if (onSave) onSave(survey);
+  }, [onSave, survey]);
 
   const calculateScore = () => {
     let score = 0;
