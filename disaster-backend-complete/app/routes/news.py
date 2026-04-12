@@ -1,7 +1,10 @@
-from fastapi import APIRouter
-import httpx
+"""
+DisasterShield News Intel Route
+Scrapes and parses real-time weather news for the platform.
+"""
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from fastapi import APIRouter, HTTPException
+import httpx
 
 router = APIRouter()
 
@@ -20,7 +23,7 @@ async def get_live_intel(city: str = "India"):
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(url)
             if response.status_code != 200:
-                raise Exception("News source unreachable")
+                raise HTTPException(status_code=502, detail="News source unreachable")
                 
             root = ET.fromstring(response.text)
             news_items = []
@@ -46,9 +49,17 @@ async def get_live_intel(city: str = "India"):
             
             return news_items
             
-    except Exception as e:
+    except (httpx.RequestError, ET.ParseError, HTTPException):
         # Professional fallback if scraping fails during the demo
         return [
-            { "id": 1, "title": f"IMD: Monitoring Atmospheric Shifts in {city} Sector", "tag": "UPLINK", "time": "1m ago", "color": "#6366F1" },
-            { "id": 2, "title": f"Local Authorities in {city} on High Alert for Summer Patterns", "tag": "LOCAL", "time": "5m ago", "color": "#34C759" }
+            {
+                "id": 1,
+                "title": f"IMD: Monitoring Atmospheric Shifts in {city} Sector",
+                "tag": "UPLINK", "time": "1m ago", "color": "#6366F1"
+            },
+            {
+                "id": 2,
+                "title": f"Local Authorities in {city} on High Alert for Summer Patterns",
+                "tag": "LOCAL", "time": "5m ago", "color": "#34C759"
+            }
         ]

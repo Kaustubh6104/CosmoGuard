@@ -1,3 +1,8 @@
+"""
+DisasterShield Heatwave Prediction Route
+Analyzes temperature forecasts to estimate health risks and alert levels.
+"""
+import httpx
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -10,8 +15,7 @@ class HeatwaveRequest(BaseModel):
 
 @router.post("/heatwave")
 async def predict_heatwave(request: HeatwaveRequest):
-    """Predict heatwave intensity using LSTM"""
-    import httpx
+    """Predict heatwave intensity using temperature forecasts."""
     
     url = f"https://api.open-meteo.com/v1/forecast?latitude={request.lat}&longitude={request.lng}&daily=temperature_2m_max&timezone=Asia%2FKolkata&forecast_days={request.forecast_days}"
     

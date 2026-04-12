@@ -1,3 +1,9 @@
+"""
+DisasterShield Landslide Prediction Route
+Uses rainfall data and geographic influence to estimate terrain stability.
+"""
+import math
+import httpx
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -10,7 +16,6 @@ class LandslideRequest(BaseModel):
 @router.post("/landslide")
 async def predict_landslide(request: LandslideRequest):
     """Predict landslide risk using Random Forest + GIS"""
-    import httpx
     
     url = f"https://api.open-meteo.com/v1/forecast?latitude={request.lat}&longitude={request.lng}&daily=precipitation_sum&timezone=Asia%2FKolkata&forecast_days=7"
     
@@ -25,7 +30,6 @@ async def predict_landslide(request: LandslideRequest):
     dist_him = max(0, 32 - request.lat)
     dist_ghats = abs(73.5 - request.lng) if request.lat < 20 else 10
     
-    import math
     mountain_influence = math.exp(-(dist_him**2 / 4)) + math.exp(-(dist_ghats**2 / 2))
     slope = 5 + 40 * mountain_influence
     

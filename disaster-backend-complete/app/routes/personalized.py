@@ -1,7 +1,11 @@
+"""
+DisasterShield Personalized Risk & Intel Routes
+Calculates localized risk based on city history and mitigation.
+"""
+import datetime
+import random
 from fastapi import APIRouter, HTTPException
 import httpx
-import random
-import datetime
 
 router = APIRouter()
 
@@ -30,6 +34,7 @@ CITY_HISTORY = {
 
 @router.get("/weather-history")
 async def get_weather_history(lat: float, lng: float):
+    """Fetches 7-day past weather data for the location."""
     url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lng}&past_days=7&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto"
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -49,11 +54,12 @@ async def get_weather_history(lat: float, lng: float):
                     "precipitation": daily["precipitation_sum"][i]
                 })
         return {"history": history[-7:]}
-    except Exception as e:
-        raise HTTPException(500, f"Error fetching weather history: {str(e)}")
+    except (httpx.RequestError, KeyError) as e:
+        raise HTTPException(500, f"Error fetching weather history: {str(e)}") from e
 
 @router.get("/risk-analysis")
 async def get_risk_analysis(lat: float, lng: float, city: str = "Unknown"):
+    """Performs hybrid risk analysis using historical and current weather."""
     history_resp = await get_weather_history(lat, lng)
     history = history_resp.get("history", [])
     if not history: return {"error": "Could not fetch history."}
@@ -108,6 +114,8 @@ async def get_evacuation_routes(
     has_ac: bool = False,
     supplies_days: int = 0
 ):
+    # pylint: disable=too-many-arguments
+    """Calculates evacuation or shelter-in-place instructions."""
     if risk_type == "drought":
         return {
             "status": "Safe to Stay (Precautionary)",
@@ -156,6 +164,7 @@ async def get_evacuation_routes(
 
 @router.get("/zones-risk")
 async def get_zones_risk(disaster_type: str = "flood"):
+    """Returns coordinates and risk levels for regional hazard zones."""
     zones = {
         "cyclone": [
             { "id": 1, "lat": 13.08, "lng": 80.27, "city": "Chennai", "label": "Category 4 Risk" },
@@ -225,8 +234,7 @@ async def get_ai_advice(payload: dict):
                     data = response.json()
                     return {"advice": data["candidates"][0]["content"]["parts"][0]["text"]}
                 print(f"Model {model} failed: {response.text}")
-            except Exception as e:
-                print(f"Error trying model {model}: {str(e)}")
+            except (httpx.RequestError, KeyError, IndexError):
                 continue
     
     # --- FINAL FAIL-SAFE: Simulated AI Response ---
@@ -238,7 +246,7 @@ async def get_ai_advice(payload: dict):
     
     if dtype.lower() in ["heatwave", "drought"]:
         advice = f"Neural Engine Offline [Simulation Mode]. {dtype} detected for {city}. Your readiness is {score}%. "
-        advice += f"Ensure hydration is prioritized and minimize exposure between 12 PM - 4 PM. "
+        advice += "Ensure hydration is prioritized and minimize exposure between 12 PM - 4 PM. "
         advice += "I recommend maintaining active cooling cycles." if context.get('ac') else "Prepare passive cooling areas."
     else:
         advice = f"Neural Engine Offline [Simulation Mode]. Scanning {city} for {dtype} impact. Readiness: {score}%. "

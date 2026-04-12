@@ -1,14 +1,18 @@
 """
 DisasterShield Complete Backend
-Multi-Hazard Prediction System for India
+Multi-Hazard Prediction System for India - API Entry Point
 """
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from app.database import engine
 from app.models import Base
-from app.routes import flood, landslide, heatwave, cyclone, drought, combined, auth, personalized, news
+from app.routes import (
+    flood, landslide, heatwave, cyclone, drought,
+    combined, auth, personalized, news
+)
 
 
 # Create database tables
@@ -43,6 +47,9 @@ app.include_router(news.router, prefix="/api/v1", tags=["Live Intel Feed"])
 
 @app.get("/")
 def root():
+    """
+    Root endpoint returning basic API metadata.
+    """
     return {
         "message": "DisasterShield Complete API v2.0",
         "modules": [
@@ -58,16 +65,22 @@ def root():
 
 @app.get("/health")
 def health_check():
+    """
+    Health check endpoint for monitoring service status.
+    """
     return {
         "status": "healthy",
         "modules_loaded": 5,
         "data_sources": ["IMD", "NASA POWER", "CWC", "Sentinel-2", "NOAA"]
     }
 
-import os
-
 if __name__ == "__main__":
     # Use the port assigned by the hosting provider (e.g., Render/Heroku)
     # Default to 8000 for local development
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False if os.environ.get("PORT") else True)
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=port,
+        reload=not os.environ.get("PORT")
+    )

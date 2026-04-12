@@ -1,3 +1,8 @@
+"""
+DisasterShield Cyclone Prediction Route
+Uses MSL pressure and coastal proximity for wind-based hazard detection.
+"""
+import math
 from fastapi import APIRouter
 from pydantic import BaseModel
 import httpx
@@ -10,6 +15,7 @@ class CycloneRequest(BaseModel):
 
 @router.post("/cyclone")
 async def predict_cyclone(request: CycloneRequest):
+    """Predicts cyclone intensity based on MSL pressure and coastal proximity."""
     # Fetching LIVE data (using Mean Sea Level pressure for accuracy)
     # Surface pressure in cities like Pune is low due to altitude, causing false cyclone alarms.
     url = (
@@ -33,7 +39,6 @@ async def predict_cyclone(request: CycloneRequest):
     min_dist = min([((request.lat - c_lat)**2 + (request.lng - c_lng)**2)**0.5 for (c_lat, c_lng) in coastal_nodes])
     
     # Gaussian decay for coastal influence (sigma = 3.0 degrees ~ 330km)
-    import math
     coast_influence = math.exp(-(min_dist**2 / (2 * 2.5**2)))
     is_coastal = min_dist < 1.5 # Boolean for summary but we use the influence for math
     

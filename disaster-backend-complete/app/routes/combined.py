@@ -1,16 +1,21 @@
+"""
+DisasterShield Combined Prediction Route
+Aggregates multiple hazard predictions into a single geospatial scan.
+"""
 from fastapi import APIRouter
 from pydantic import BaseModel
+from app.routes import flood, drought, landslide, heatwave, cyclone
 
 router = APIRouter()
 
 class CombinedRequest(BaseModel):
+    """Schema for multi-hazard scan request."""
     lat: float
     lng: float
 
 @router.post("/predict-all")
 async def predict_all_disasters(request: CombinedRequest):
     """Predict all disaster types with built-in resilience for the presentation demo"""
-    from app.routes import flood, drought, landslide, heatwave, cyclone
     
     # Initialize response structures
     results = {}
@@ -19,7 +24,7 @@ async def predict_all_disasters(request: CombinedRequest):
     async def safe_call(func, req_obj, key):
         try:
             return await func(req_obj)
-        except Exception as e:
+        except Exception as e: # pylint: disable=broad-exception-caught
             print(f"RESILIENCE WARNING: {key} predictor failed. Using baseline. Error: {str(e)}")
             # Baseline fallbacks to prevent 500 error
             fallbacks = {

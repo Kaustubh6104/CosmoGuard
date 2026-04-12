@@ -1,3 +1,8 @@
+"""
+DisasterShield Drought Prediction Route
+Uses temperature and precipitation data to calculate agricultural drought indices.
+"""
+import httpx
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -9,9 +14,7 @@ class DroughtRequest(BaseModel):
 
 @router.post("/drought")
 async def predict_drought(request: DroughtRequest):
-    """Predict drought severity using XGBoost + NDVI"""
-    # Simplified prediction
-    import httpx
+    """Predict drought severity using temperature and rainfall forecasts."""
     
     url = f"https://api.open-meteo.com/v1/forecast?latitude={request.lat}&longitude={request.lng}&current_weather=true&daily=precipitation_sum,temperature_2m_max&timezone=Asia%2FKolkata&forecast_days=7"
     

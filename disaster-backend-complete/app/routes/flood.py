@@ -1,14 +1,12 @@
-"""
-Flood Prediction API Route
-"""
+import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
-import httpx
+from ml_modules.flood_predictor import flood_predictor
 
 router = APIRouter()
 
 class FloodRequest(BaseModel):
+    """Schema for flood prediction request."""
     lat: float
     lng: float
     use_ml: bool = True
@@ -42,10 +40,9 @@ async def predict_flood(request: FloodRequest):
         }
         
     except Exception as e:
-        raise HTTPException(500, f"Weather API error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Weather API error: {str(e)}") from e
     
     # Use ML predictor
-    from ml_modules.flood_predictor import flood_predictor
     prediction = flood_predictor.predict(request.lat, request.lng, weather_data)
     
     return {
